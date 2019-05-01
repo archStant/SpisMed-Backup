@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-#import re
+# import re
 import os
 import datetime
 import sys
@@ -58,7 +58,7 @@ def writeconf():
     global kitchen, email, password
     kitchen = takeInput('Køkkennummer:\t')
     email = takeInput('Din email:\t')
-    password = getpass('Dit password:\t')  # takeInput('Dit password:\t')
+    password = getpass('Dit password:\t')
     cfgfile = open(config_file, 'w+')
     Config.add_section('backup_spismed')
     Config.set('backup_spismed', 'kitchen_number', str(kitchen))
@@ -68,10 +68,12 @@ def writeconf():
     cfgfile.close()
 
 
+# Configure user
 if '--configure' in sys.argv:
     writeconf()
     sys.exit()
 
+# Case if user not configured
 if not os.path.isfile(config_file):
     print('Not yet configured, run "backup_spismed --configure"')
     sys.exit(0)
@@ -83,7 +85,7 @@ else:
     login_data['user[email]'] = email
     login_data['user[password]'] = password
 
-#print(kitchen, email, password)
+
 foldername = os.path.join(home, 'spismed_backups')
 
 # Choose directory
@@ -116,7 +118,7 @@ if '-l' in sys.argv:
     print('Current backups:')
     for i in backups:
         print(i)
-    print('(Located in "%s")' % foldername)
+    print('(Located in "%s")\nTotal backups: %d' % (foldername, len(backups)))
     sys.exit(0)
 
 print('Kitchen:\t%s\nEmail:\t\t%s\n' % (kitchen, email))
@@ -134,17 +136,17 @@ with requests.Session() as s:
     soup = BeautifulSoup(r.content, 'html.parser')
     tmp = soup.find('tbody', id='accounts')
     if tmp is None:
-        print('Something went wrong. Check you internet connection or configuration')
+        print('Something went wrong. Check your internet connection or configuration')
         sys.exit(1)
     theTable = (tmp).text
 
 # Sanitize data
-a = theTable.replace('\n'*5, '\n')
-a = a.replace('\n'*4, '\t')
-a = a.replace('\n'*3, ':\t')[2:-1]
+a = theTable.replace('\n' * 5, '\n')
+a = a.replace('\n' * 4, '\t')
+a = a.replace('\n' * 3, ':\t')[2:-1]
 
 b = [x.split('\t') for x in a.split('\n')]
-for i in range(int(len(b)/2)):
+for i in range(int(len(b) / 2)):
     b.remove([''])
 
 
@@ -153,7 +155,7 @@ filename = os.path.join(foldername, ('spismed_backup_%s.txt' % now.strftime("%Y-
 
 # Print to screen
 if '-p' in sys.argv:
-    print('Navn%sSidste måned\t Total udestående\n%s' % (' '*20, '-'*60))
+    print('Navn%sSidste måned\t Total udestående\n%s' % (' ' * 20, '-' * 60))
     for i in b:
         print('%s %s\t%s' % (i[0].ljust(20), i[1].rjust(15), i[2].rjust(15)))
 # Write to file
@@ -164,7 +166,7 @@ else:
 
     with open(filename, 'w') as file:
 
-        file.write('Navn%sSidste måned\t Total udestående\n%s\n' % (' '*20, '-'*60))
+        file.write('Navn%sSidste måned\t Total udestående\n%s\n' % (' ' * 20, '-' * 60))
         for i in b:
             file.write('%s %s\t%s\n' % (i[0].ljust(20), i[1].rjust(15), i[2].rjust(15)))
         file.write('\n\n%s' % now.strftime("%Y-%m-%d %H:%M"))
