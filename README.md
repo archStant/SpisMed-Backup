@@ -1,4 +1,6 @@
 # SpisMed-Backup
+Tager en backup af dit kollegiekøkkens økonomi-status på SpisMed.nu og gemmer som txt-fil.
+Sæt evt. et cronjob op til at køre det dagligt.
 
 ## Usage: 
 ```
