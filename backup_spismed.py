@@ -7,8 +7,13 @@ import sys
 from pathlib import Path
 from getpass import getpass
 import configparser
+from pathlib import Path
+import platform
 
 Config = configparser.ConfigParser()
+
+# Is this a pyinstaller bundle running?
+compiled = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 
 kitchen, email, password = '', '', ''
 
@@ -30,7 +35,7 @@ Options:
     -p:          Print the standings without saving to a file
     -l:          List the current backups
     -c:          Clean the backups directory leaving only the 10 latest backups
-    -d "DST":    Saves the backup in the supplied destination
+    -d "DST":    Saves a single backup in the supplied destination
     --configure: Runs the configuration wiz
 All options are mutually exclusive.'''
 
@@ -40,6 +45,8 @@ home = str(Path.home())
 config_folder = os.path.join(home, '.backup_spismed')
 config_file = os.path.join(config_folder, 'config.ini')
 
+# foldername = os.path.join(home, 'spismed_backups')
+
 if not (os.path.isdir(config_folder)):
     print('Making directory "%s"' % config_folder)
     os.mkdir(config_folder)
@@ -48,24 +55,32 @@ if not (os.path.isdir(config_folder)):
 def takeInput(question):
     x = input(question)
     if not x:
-        print('Error: exiting')
+        # print('Error: exiting')
         sys.exit(0)
     else:
         return x
 
+def waitIfCompiled():
+    if compiled:
+        input('Done, press Enter to exit...')
 
 def writeconf():
     global kitchen, email, password
-    kitchen = takeInput('Køkkennummer:\t')
-    email = takeInput('Din email:\t')
-    password = getpass('Dit password:\t')
+    kitchen = takeInput('Køkkennummer:\t\t')
+    email = takeInput('Din email:\t\t')
+    password = getpass('Dit password:\t\t')
+    foldername = takeInput('\nBackup location:\t')
     cfgfile = open(config_file, 'w+')
     Config.add_section('backup_spismed')
     Config.set('backup_spismed', 'kitchen_number', str(kitchen))
     Config.set('backup_spismed', 'email', email)
     Config.set('backup_spismed', 'password', password)
+    Config.set('backup_spismed', 'foldername', foldername)
     Config.write(cfgfile)
     cfgfile.close()
+    Path(foldername).mkdir(parents=True, exist_ok=True)
+    print(f'Created folder {foldername}')
+    waitIfCompiled()
 
 
 # Configure user
@@ -75,18 +90,22 @@ if '--configure' in sys.argv:
 
 # Case if user not configured
 if not os.path.isfile(config_file):
-    print('Not yet configured, run "backup_spismed --configure"')
+    print('Not yet configured.')
+    # if compiled:
+    if takeInput('Would you like to configure now? [y/N] ') in ['Y','y']:
+        writeconf()
     sys.exit(0)
 else:
     Config.read(config_file)
     kitchen = Config.get('backup_spismed', 'kitchen_number')
     email = Config.get('backup_spismed', 'email')
     password = Config.get('backup_spismed', 'password').strip()
+    foldername = Config.get('backup_spismed', 'foldername')
     login_data['user[email]'] = email
     login_data['user[password]'] = password
 
 
-foldername = os.path.join(home, 'spismed_backups')
+
 
 # Choose directory
 if '-d' in sys.argv:
@@ -114,7 +133,7 @@ if '-c' in sys.argv:
 
 # List current backups
 if '-l' in sys.argv:
-    backups = sorted(os.listdir(foldername))
+    backups = sorted([file for file in os.listdir(foldername) if file[:15] == 'spismed_backup_'])
     print('Current backups:')
     for i in backups:
         print(i)
@@ -145,26 +164,29 @@ a = theTable.replace('\n' * 5, '\n')
 a = a.replace('\n' * 4, '\t')
 a = a.replace('\n' * 3, ':\t')[2:-1]
 
-b = [x.split('\t') for x in a.split('\n')]
-for i in range(int(len(b) / 2)):
-    b.remove([''])
+
+b = [x.split('\t') for x in a.split('\n') if x != ""]
+# for i in range(int(len(b) / 2)):
+#     b.remove([''])
 
 
 now = datetime.datetime.now()
 filename = os.path.join(foldername, ('spismed_backup_%s.txt' % now.strftime("%Y-%m-%d-%H-%M")))
+
 
 # Print to screen
 if '-p' in sys.argv:
     print('Navn%sSidste måned\t Total udestående\n%s' % (' ' * 20, '-' * 60))
     for i in b:
         print('%s %s\t%s' % (i[0].ljust(20), i[1].rjust(15), i[2].rjust(15)))
+    waitIfCompiled()
 # Write to file
 else:
     if not (os.path.isdir(foldername)):
         print('Making directory "%s"' % foldername)
         os.mkdir(foldername)
 
-    with open(filename, 'w') as file:
+    with open(filename, 'w', encoding="utf-8") as file:
 
         file.write('Navn%sSidste måned\t Total udestående\n%s\n' % (' ' * 20, '-' * 60))
         for i in b:
@@ -172,6 +194,11 @@ else:
         file.write('\n\n%s' % now.strftime("%Y-%m-%d %H:%M"))
 
     print('Writing to "%s"' % filename)
-    count = len(os.listdir(foldername))
+    count = len([file for file in os.listdir(foldername) if file[:15] == 'spismed_backup_'])
     print('Current number of backups: %d' % count)
-    os.system('/usr/bin/notify-send "Backed up Spismed.nu"')
+    if platform.system() == 'Linux':
+        os.system('/usr/bin/notify-send "Backed up Spismed.nu"')
+    
+    waitIfCompiled()
+    # else:
+    #     print('running in a normal Python process')
